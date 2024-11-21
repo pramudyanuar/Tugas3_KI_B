@@ -2,25 +2,10 @@ import socket
 import threading
 import random
 from rsa import generate_rsa_keys, rsa_encrypt, rsa_decrypt
-from des.des import encryption_text as des_encrypt, decryption_text as des_decrypt
+from des.des import encryption_text as des_encrypt, decryption_text as des_decrypt, generate_random_key
 
 # RSA keys
 public_key, private_key = generate_rsa_keys()
-
-# DES sederhana
-# def des_encrypt(key, plaintext):
-#     while len(plaintext) % 8 != 0:
-#         plaintext += " "
-#     ciphertext = ""
-#     for i in range(len(plaintext)):
-#         ciphertext += chr(ord(plaintext[i]) ^ ord(key[i % len(key)]))
-#     return ciphertext
-
-# def des_decrypt(key, ciphertext):
-#     plaintext = ""
-#     for i in range(len(ciphertext)):
-#         plaintext += chr(ord(ciphertext[i]) ^ ord(key[i % len(key)]))
-#     return plaintext.strip()
 
 def register_to_pka(username):
     """Mendaftarkan kunci publik ke PKA."""
@@ -83,12 +68,11 @@ def receive_messages(client_socket):
             client_socket.close()
             break
 
-def send_messages(client_socket, recipient):
+def send_messages(client_socket, recipient, sender):
     """Mengirim pesan ke server."""
     while True:
         message = input("")
-        sender = recipient  # Ambil username pengirim
-        des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
+        des_key = generate_random_key()
         recipient_public_key = get_public_key_from_pka(recipient)
         if not recipient_public_key:
             continue
@@ -112,7 +96,7 @@ def main():
     thread_receive = threading.Thread(target=receive_messages, args=(client_socket,))
     thread_receive.start()
 
-    thread_send = threading.Thread(target=send_messages, args=(client_socket, recipient))
+    thread_send = threading.Thread(target=send_messages, args=(client_socket, recipient, username))
     thread_send.start()
 
 if __name__ == "__main__":
