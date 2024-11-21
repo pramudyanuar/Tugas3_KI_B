@@ -1,39 +1,55 @@
 import socket
-import threading 
+from rsa import generate_rsa_keys, encrypt_rsa
 
-def encrypt_message(message, e, n):
-    return ','.join(str(pow(ord(char), e, n)) for char in message)
+# Generate RSA keys for the client
+client_public_key, client_private_key = generate_rsa_keys()
 
-def rsa_client():
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect(('127.0.0.1', 12345))
+def start_client():
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect(("127.0.0.1", 5555))  # Connect to the server (localhost)
 
-    public_key = client_socket.recv(1024).decode('utf-8')
-    e, n = map(int, public_key.split(','))
+    # Receive server's public key and store it
+    try:
+        server_public_key = client.recv(1024).decode()
+        print(f"Received server's public key: {server_public_key}")
+    except Exception as e:
+        print(f"Failed to receive server's public key: {e}")
+        return
 
-    shared_key = 12345  # Example shared key
-    encrypted_key = pow(shared_key, e, n)
-    client_socket.sendall(str(encrypted_key).encode('utf-8'))
+    # Register client with encrypted ID
+    client_id = input("Enter your client ID: ")
+    encrypted_client_id = encrypt_rsa(client_id, eval(server_public_key))
+    client.send(encrypted_client_id.encode())
+    print("Encrypted client ID sent to server.")
 
-    print(f"Sent encrypted shared key: {encrypted_key}")
+    # Send public key to the server
+    client.send(str(client_public_key).encode())
+    print("Public key sent to server.")
 
-    def receive_messages():
-        while True:
-            try:
-                message = client_socket.recv(1024).decode('utf-8')
-                if message:
-                    print(f"Received: {message}")
-            except:
-                break
-
-    threading.Thread(target=receive_messages).start()
-
+    # Request public keys and addresses
     while True:
-        message = input("Enter message: ")
-        encrypted_message = encrypt_message(message, e, n)
-        client_socket.sendall(encrypted_message.encode('utf-8'))
-        print(f"Sent encrypted message: {encrypted_message}")
+        requested_id = input("Enter the ID of the client whose key and address you want (or 'EXIT' to quit): ")
+        if requested_id == "EXIT":
+            client.send("EXIT".encode())
+            print("Exiting...")
+            break
 
+        # Encrypt the requester_id and requested_id
+        encrypted_request = encrypt_rsa(f"{client_id}:{requested_id}", eval(server_public_key))
+        client.send(encrypted_request.encode())
+
+        response = client.recv(1024).decode()
+        if response == "Client not found":
+            print("Requested client ID not found.")
+        elif response == "Unauthorized requester":
+            print("You are not authorized to request client info.")
+        elif response == "Invalid request format":
+            print("The request format is invalid.")
+        else:
+            print(f"Received client info: {response}")
+    
+    client.close()
 
 if __name__ == "__main__":
-    rsa_client()
+    print(f"Your Public Key: {client_public_key}")
+    start_client()

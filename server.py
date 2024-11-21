@@ -1,90 +1,71 @@
 import socket
 import threading
-import random
-from math import gcd
+from rsa import generate_rsa_keys, decrypt_rsa
 
-# Generate RSA keys
-def generate_rsa_keys():
-    def is_prime(num):
-        if num < 2:
-            return False
-        for i in range(2, int(num**0.5) + 1):
-            if num % i == 0:
-                return False
-        return True
+# Generate RSA keys for the server
+server_public_key, server_private_key = generate_rsa_keys()
 
-    def generate_prime():
+# Store client public keys and addresses
+client_info = {}
+
+def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    try:
+        # Send server public key to client
+        conn.send(str(server_public_key).encode())
+        print("[SERVER] Sent public key to client.")
+
+        # Receive the encrypted client ID
+        encrypted_client_id = conn.recv(1024).decode()
+        client_id = decrypt_rsa(encrypted_client_id, server_private_key)
+        print(f"[CLIENT ID DECRYPTED] {client_id} connected.")
+
+        # Receive the public key of the client
+        public_key = conn.recv(1024).decode()
+        client_info[client_id] = {"public_key": public_key, "address": addr}
+        print(f"[REGISTERED] {client_id} registered with public key: {public_key}")
+        
+        # Handle key and address requests
         while True:
-            p = random.randint(100, 999)
-            if is_prime(p):
-                return p
-
-    p = generate_prime()
-    q = generate_prime()
-    n = p * q
-    phi = (p - 1) * (q - 1)
-
-    e = random.choice([x for x in range(2, phi) if gcd(x, phi) == 1])
-    d = pow(e, -1, phi)
-    return (e, n), (d, n)
-
-public_key, private_key = generate_rsa_keys()
-print(f"Public Key: {public_key}, Private Key: {private_key}")
-
-clients = []  # List of connected clients
-
-
-def broadcast_message(message, sender_socket=None):
-    """Broadcast message to all clients except sender"""
-    for client_socket in clients:
-        if client_socket != sender_socket:
-            try:
-                client_socket.sendall(message.encode('utf-8'))
-            except Exception as e:
-                print(f"[ERROR] Unable to send message to client: {e}")
-
-
-def handle_client(client_socket):
-    clients.append(client_socket)
-    client_socket.sendall(f"{public_key[0]},{public_key[1]}".encode('utf-8'))
-
-    encrypted_key = int(client_socket.recv(1024).decode('utf-8'))
-    shared_key = pow(encrypted_key, private_key[0], private_key[1])
-    print(f"Shared key decrypted: {shared_key}")
-
-    while True:
-        try:
-            encrypted_message = client_socket.recv(1024).decode('utf-8')
-            if encrypted_message:
-                print(f"Encrypted message received: {encrypted_message}")
-                decrypted_message = ''.join(
-                    chr(pow(int(char), private_key[0], private_key[1]))
-                    for char in encrypted_message.split(',')
-                )
-                print(f"Decrypted message: {decrypted_message}")
-                broadcast_message(f"Client: {decrypted_message}", sender_socket=client_socket)
-            else:
+            data = conn.recv(1024).decode()
+            if data == "EXIT":
                 break
-        except Exception as e:
-            print(f"[ERROR] Error handling client: {e}")
-            break
 
-    client_socket.close()
-    clients.remove(client_socket)
-    print(f"[INFO] Client disconnected. Remaining clients: {len(clients)}")
+            try:
+                # Data is encrypted; decrypt to get requester_id and requested_id
+                decrypted_data = decrypt_rsa(data, server_private_key)
+                requester_id, requested_id = decrypted_data.split(":")
 
+                if requester_id not in client_info:
+                    conn.send("Unauthorized requester".encode())
+                    print(f"[UNAUTHORIZED] {requester_id} attempted to request a key.")
+                    continue
 
-def server_program():
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('0.0.0.0', 12345))
-    server_socket.listen(5)
-    print("[START] Server is listening for connections...")
+                if requested_id in client_info:
+                    response = f"{client_info[requested_id]['public_key']}:{client_info[requested_id]['address']}"
+                    conn.send(response.encode())
+                    print(f"[INFO SENT] Public key and address of {requested_id} sent to {requester_id}")
+                else:
+                    conn.send("Client not found".encode())
+                    print(f"[NOT FOUND] {requested_id} not found for {requester_id}")
+            except ValueError:
+                conn.send("Invalid request format".encode())
+    except Exception as e:
+        print(f"[ERROR] {addr}: {e}")
+    finally:
+        conn.close()
 
+def start_server():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 5555))
+    server.listen(5)
+    print(f"[SERVER STARTED] Public Key: {server_public_key}")
+    
     while True:
-        client_socket, client_address = server_socket.accept()
-        print(f"[CONNECTED] New client connected from {client_address}")
-        threading.Thread(target=handle_client, args=(client_socket,)).start()
-
+        conn, addr = server.accept()
+        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread.start()
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
 
 if __name__ == "__main__":
-    server_program()
+    start_server()
