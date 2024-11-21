@@ -1,39 +1,41 @@
 import random
-from math import gcd
 
-def is_prime(num):
-        if num < 2:
-            return False
-        for i in range(2, int(num**0.5) + 1):
-            if num % i == 0:
-                return False
-        return True
+# Fungsi untuk menghitung GCD
+def gcd(a, b):
+    while b != 0:
+        a, b = b, a % b
+    return a
 
-# Generate RSA keys
+# Fungsi untuk menghitung modular inverse
+def mod_inverse(e, phi):
+    for d in range(1, phi):
+        if (e * d) % phi == 1:
+            return d
+    return None
+
+# Fungsi untuk menghasilkan pasangan kunci RSA
 def generate_rsa_keys():
-
-    def generate_prime():
-        while True:
-            p = random.randint(100, 999)
-            if is_prime(p):
-                return p
-
-    p = generate_prime()
-    q = generate_prime()
-    while p == q:
-         q = generate_prime()
-
+    p = 61  # Bilangan prima 1
+    q = 53  # Bilangan prima 2
     n = p * q
     phi = (p - 1) * (q - 1)
 
-    e = random.choice([x for x in range(2, phi) if gcd(x, phi) == 1])
-    d = pow(e, -1, phi)
-    return (e, n), (d, n)
+    e = 3
+    while gcd(e, phi) != 1:
+        e += 2
 
-def encrypt_rsa(message, public_key):
+    d = mod_inverse(e, phi)
+    return ((e, n), (d, n))  # Public key dan Private key
+
+# Fungsi untuk enkripsi dengan RSA
+def rsa_encrypt(public_key, plaintext):
     e, n = public_key
-    return ' '.join([str(pow(ord(char), e, n)) for char in message])
+    ciphertext = [pow(ord(char), e, n) for char in plaintext]
+    return ciphertext
 
-def decrypt_rsa(encrypted_message, private_key):
+# Fungsi untuk dekripsi dengan RSA
+def rsa_decrypt(private_key, ciphertext):
     d, n = private_key
-    return ''.join([chr(pow(int(char), d, n)) for char in encrypted_message.split()])
+    plaintext = ''.join([chr(pow(char, d, n)) for char in ciphertext])
+    return plaintext
+  
