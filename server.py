@@ -6,12 +6,9 @@ clients = []  # Untuk menyimpan koneksi client
 def broadcast(sender_socket, message):
     """Mengirim pesan ke semua client kecuali pengirim."""
     try:
-        if b"KEY:" in message and b"MSG:" in message:  # Validasi data
-            for client in clients:
-                if client != sender_socket:
-                    client.send(message)
-        else:
-            print(f"Data tidak valid: {message}")
+        for client in clients:
+            if client != sender_socket:
+                client.send(message)
     except Exception as e:
         print(f"Error saat broadcast: {e}")
 
