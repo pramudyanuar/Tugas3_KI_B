@@ -63,17 +63,17 @@ def receive_messages(client_socket):
             buffer += data  # Tambahkan data ke buffer
             while "|END|" in buffer:  # Cek apakah ada pesan lengkap
                 message, buffer = buffer.split("|END|", 1)  # Pisahkan pesan lengkap dari buffer
-                print(f"Data diterima: {message}")  # Debugging log
                 if "KEY:" in message and "MSG:" in message:
                     try:
                         parts = message.split(";")
                         if len(parts) == 2:
                             encrypted_key = parts[0][4:]  # Hilangkan "KEY:"
                             encrypted_message = parts[1][4:]  # Hilangkan "MSG:"
+                            sender, encrypted_message = encrypted_message.split(":", 1)  # Pisahkan sender dan pesan
                             encrypted_key = list(map(int, encrypted_key.split(',')))
                             des_key = rsa_decrypt(private_key, encrypted_key)
-                            decrypted_message = des_decrypt(encrypted_message,des_key)
-                            print(f"Pesan diterima: {decrypted_message}")
+                            decrypted_message = des_decrypt(encrypted_message, des_key)
+                            print(f"{sender}: {decrypted_message}")
                         else:
                             print("Format data tidak valid.")
                     except Exception as e:
@@ -86,15 +86,17 @@ def receive_messages(client_socket):
 def send_messages(client_socket, recipient):
     """Mengirim pesan ke server."""
     while True:
-        message = input("Masukkan pesan: ")
+        message = input("")
+        sender = recipient  # Ambil username pengirim
         des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
         recipient_public_key = get_public_key_from_pka(recipient)
         if not recipient_public_key:
             continue
         encrypted_key = rsa_encrypt(recipient_public_key, des_key)
         encrypted_message = des_encrypt(message, des_key)
-        # Tambahkan delimiter |END| di akhir pesan
-        data = f"KEY:{','.join(map(str, encrypted_key))};MSG:{encrypted_message}|END|"
+        
+        # Menambahkan username pengirim ke dalam format pesan
+        data = f"KEY:{','.join(map(str, encrypted_key))};MSG:{sender}:{encrypted_message}|END|"
         client_socket.send(data.encode())
 
 def main():
