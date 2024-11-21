@@ -4,8 +4,8 @@
 
 | **Anggota**               | **Tugas Utama**                                                                                      |
 |---------------------------|-----------------------------------------------------------------------------------------------------|
-| **Yanuar Eka Pramudya ( 5025221049 ) ** | 🔐 **Pengelolaan Kunci RSA dan PKA**<br>• Mengimplementasikan logika registrasi dan pengambilan kunci publik dari PKA.<br>• Mengembangkan fungsi RSA untuk enkripsi dan dekripsi kunci sementara.<br>• Memastikan keamanan komunikasi melalui integrasi RSA dengan PKA. |
-| **Abiyu Ramadhan Kiesly ( 5025221123 ) **   | 💻 **Pengembangan Sistem Client-Server**<br>• Menerapkan komunikasi client-server menggunakan socket programming.<br>• Menangani logika pengiriman dan penerimaan pesan terenkripsi melalui server.<br>• Mengintegrasikan algoritma enkripsi DES dan RSA dalam proses client-server. |
+| **Yanuar Eka Pramudya ( 5025221049 )** | 🔐 **Pengelolaan Kunci RSA dan PKA**<br>• Mengimplementasikan logika registrasi dan pengambilan kunci publik dari PKA.<br>• Mengembangkan fungsi RSA untuk enkripsi dan dekripsi kunci sementara.<br>• Memastikan keamanan komunikasi melalui integrasi RSA dengan PKA. |
+| **Abiyu Ramadhan Kiesly ( 5025221123 )**   | 💻 **Pengembangan Sistem Client-Server**<br>• Menerapkan komunikasi client-server menggunakan socket programming.<br>• Menangani logika pengiriman dan penerimaan pesan terenkripsi melalui server.<br>• Mengintegrasikan algoritma enkripsi DES dan RSA dalam proses client-server. |
 
 
 Proyek ini adalah sistem komunikasi aman yang menggabungkan algoritma **RSA** dan **DES** untuk memastikan privasi dan integritas pesan. Sistem dirancang untuk mengenkripsi pesan antara pengguna dengan mekanisme yang menggabungkan keunggulan enkripsi **asimetris** dan **simetris**.
