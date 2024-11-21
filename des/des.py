@@ -1,4 +1,10 @@
 from des.desTables import *
+import random
+import string
+
+def generate_random_key(length=8):
+    letters = string.ascii_letters + string.digits
+    return ''.join(random.choice(letters) for _ in range(length))
 
 def str_to_bin(user_input):
     

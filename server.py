@@ -32,6 +32,36 @@ def main():
     server.listen(5)
     print("Server sedang berjalan...")
 
+            try:
+                # Data is encrypted; decrypt to get requester_id and requested_id
+                decrypted_data = decrypt_rsa(data, server_private_key)
+                requester_id, requested_id = decrypted_data.split(":")
+
+                if requester_id not in client_info:
+                    conn.send("Unauthorized requester".encode())
+                    print(f"[UNAUTHORIZED] {requester_id} attempted to request a key.")
+                    continue
+
+                if requested_id in client_info:
+                    response = f"{client_info[requested_id]['public_key']}:{client_info[requested_id]['address']}"
+                    conn.send(response.encode())
+                    print(f"[INFO SENT] Public key and address of {requested_id} sent to {requester_id}")
+                else:
+                    conn.send("Client not found".encode())
+                    print(f"[NOT FOUND] {requested_id} not found for {requester_id}")
+            except ValueError:
+                conn.send("Invalid request format".encode())
+    except Exception as e:
+        print(f"[ERROR] {addr}: {e}")
+    finally:
+        conn.close()
+
+def start_server():
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("0.0.0.0", 5555))
+    server.listen(5)
+    print(f"[SERVER STARTED] Public Key: {server_public_key}")
+    
     while True:
         client_socket, client_address = server.accept()
         print(f"Koneksi dari {client_address}")
