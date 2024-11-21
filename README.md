@@ -54,7 +54,12 @@ Proyek ini adalah sistem komunikasi aman yang menggabungkan algoritma **RSA** da
    - Kunci sementara dibuat setiap kali pengirim ingin mengirim pesan.
    - Contoh pembuatan kunci:
      ```python
-     des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
+     def generate_random_key(length=8):
+         letters = string.ascii_letters + string.digits
+         return ''.join(random.choice(letters) for _ in range(length))
+     ```
+     ```python
+     des_key = generate_random_key()
      ```
 
 2. **Enkripsi Kunci Sementara**:
