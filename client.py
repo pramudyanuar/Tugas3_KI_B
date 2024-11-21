@@ -64,6 +64,40 @@ def receive_messages(client_socket):
             print("Koneksi ke server terputus.")
             break
 
+def chat_group_session(client_socket, group_name):
+    """Session untuk chat dalam grup."""
+    print(f"Masuk ke group chat '{group_name}'. Ketik 'EXIT' untuk keluar.")
+    while True:
+        message = input(f"[Grup {group_name}] > ")
+        if message.strip().upper() == "EXIT":
+            print(f"Keluar dari group chat '{group_name}'.")
+            break
+        client_socket.send(f"SEND_GROUP:{group_name}:{message}".encode())
+
+def chat_private_session(client_socket, target_username):
+    """Session untuk chat pribadi dengan pengguna lain."""
+    print(f"Masuk ke private chat dengan '{target_username}'. Ketik 'EXIT' untuk keluar.")
+    while True:
+        message = input(f"[Private to {target_username}] > ")
+        if message.strip().upper() == "EXIT":
+            print(f"Keluar dari private chat dengan '{target_username}'.")
+            break
+        # Enkripsi pesan dengan DES
+        des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
+        recipient_public_key = get_public_key_from_pka(target_username)
+        if not recipient_public_key:
+            print(f"User '{target_username}' tidak ditemukan.")
+            break
+
+        # Enkripsi DES key menggunakan RSA
+        encrypted_key = rsa_encrypt(recipient_public_key, des_key)
+        
+        # Enkripsi pesan
+        encrypted_message = des_encrypt(des_key, message)
+        
+        # Kirim pesan terenkripsi
+        client_socket.send(f"CHAT_WITH:{target_username};KEY:{','.join(map(str, encrypted_key))};MSG:{encrypted_message}".encode())
+
 def send_messages(client_socket):
     """Mengirim pesan ke server."""
     while True:
@@ -95,28 +129,11 @@ def send_messages(client_socket):
         elif choice == "5":
             # Kirim pesan ke grup
             group_name = input("Masukkan nama grup: ")
-            message = input("Masukkan pesan: ")
-            client_socket.send(f"SEND_GROUP:{group_name}:{message}".encode())
+            chat_group_session(client_socket, group_name)
         elif choice == "6":
             # Kirim pesan pribadi
             target_username = input("Masukkan username penerima: ")
-            message = input("Masukkan pesan: ")
-            
-            # Enkripsi pesan dengan DES
-            des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
-            recipient_public_key = get_public_key_from_pka(target_username)
-            if not recipient_public_key:
-                print(f"User '{target_username}' tidak ditemukan.")
-                continue
-            
-            # Enkripsi DES key menggunakan RSA
-            encrypted_key = rsa_encrypt(recipient_public_key, des_key)
-            
-            # Enkripsi pesan
-            encrypted_message = des_encrypt(des_key, message)
-            
-            # Kirim pesan terenkripsi
-            client_socket.send(f"CHAT_WITH:{target_username};KEY:{','.join(map(str, encrypted_key))};MSG:{encrypted_message}".encode())
+            chat_private_session(client_socket, target_username)
         elif choice == "7":
             # Keluar
             print("Keluar dari aplikasi.")
