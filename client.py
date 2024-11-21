@@ -2,25 +2,24 @@ import socket
 import threading
 import random
 from rsa import generate_rsa_keys, rsa_encrypt, rsa_decrypt
-from des.des import encryption_text as des_encrypt, decryption_text as des_decrypt
 
 # RSA keys
 public_key, private_key = generate_rsa_keys()
 
 # DES sederhana
-# def des_encrypt(key, plaintext):
-#     while len(plaintext) % 8 != 0:
-#         plaintext += " "
-#     ciphertext = ""
-#     for i in range(len(plaintext)):
-#         ciphertext += chr(ord(plaintext[i]) ^ ord(key[i % len(key)]))
-#     return ciphertext
+def des_encrypt(key, plaintext):
+    while len(plaintext) % 8 != 0:
+        plaintext += " "
+    ciphertext = ""
+    for i in range(len(plaintext)):
+        ciphertext += chr(ord(plaintext[i]) ^ ord(key[i % len(key)]))
+    return ciphertext
 
-# def des_decrypt(key, ciphertext):
-#     plaintext = ""
-#     for i in range(len(ciphertext)):
-#         plaintext += chr(ord(ciphertext[i]) ^ ord(key[i % len(key)]))
-#     return plaintext.strip()
+def des_decrypt(key, ciphertext):
+    plaintext = ""
+    for i in range(len(ciphertext)):
+        plaintext += chr(ord(ciphertext[i]) ^ ord(key[i % len(key)]))
+    return plaintext.strip()
 
 def register_to_pka(username):
     """Mendaftarkan kunci publik ke PKA."""
@@ -39,7 +38,7 @@ def register_to_pka(username):
 def get_public_key_from_pka(username):
     """Mendapatkan kunci publik dari Public Key Authority."""
     try:
-        pka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Koneksi baru
+        pka_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         pka_socket.connect(("127.0.0.1", 6000))
         pka_socket.send(f"GET:{username}".encode())
         response = pka_socket.recv(1024).decode()
@@ -56,46 +55,75 @@ def get_public_key_from_pka(username):
 
 def receive_messages(client_socket):
     """Menerima pesan dari server."""
-    buffer = ""  # Buffer untuk menyimpan data yang diterima
     while True:
         try:
             data = client_socket.recv(1024).decode()
-            buffer += data  # Tambahkan data ke buffer
-            while "|END|" in buffer:  # Cek apakah ada pesan lengkap
-                message, buffer = buffer.split("|END|", 1)  # Pisahkan pesan lengkap dari buffer
-                print(f"Data diterima: {message}")  # Debugging log
-                if "KEY:" in message and "MSG:" in message:
-                    try:
-                        parts = message.split(";")
-                        if len(parts) == 2:
-                            encrypted_key = parts[0][4:]  # Hilangkan "KEY:"
-                            encrypted_message = parts[1][4:]  # Hilangkan "MSG:"
-                            encrypted_key = list(map(int, encrypted_key.split(',')))
-                            des_key = rsa_decrypt(private_key, encrypted_key)
-                            decrypted_message = des_decrypt(encrypted_message,des_key)
-                            print(f"Pesan diterima: {decrypted_message}")
-                        else:
-                            print("Format data tidak valid.")
-                    except Exception as e:
-                        print(f"Error dalam memproses data: {e}")
-        except Exception as e:
-            print(f"Error dalam menerima pesan: {e}")
-            client_socket.close()
+            if data:
+                print(data)  # Tampilkan pesan dari server
+        except:
+            print("Koneksi ke server terputus.")
             break
 
-def send_messages(client_socket, recipient):
+def send_messages(client_socket):
     """Mengirim pesan ke server."""
     while True:
-        message = input("Masukkan pesan: ")
-        des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
-        recipient_public_key = get_public_key_from_pka(recipient)
-        if not recipient_public_key:
-            continue
-        encrypted_key = rsa_encrypt(recipient_public_key, des_key)
-        encrypted_message = des_encrypt(message, des_key)
-        # Tambahkan delimiter |END| di akhir pesan
-        data = f"KEY:{','.join(map(str, encrypted_key))};MSG:{encrypted_message}|END|"
-        client_socket.send(data.encode())
+        print("\nPilihan:")
+        print("1. Lihat daftar pengguna yang terhubung")
+        print("2. Lihat daftar grup")
+        print("3. Buat grup baru")
+        print("4. Bergabung ke grup")
+        print("5. Kirim pesan ke grup")
+        print("6. Kirim pesan pribadi")
+        print("7. Keluar")
+
+        choice = input("Masukkan pilihan (1/2/3/4/5/6/7): ")
+
+        if choice == "1":
+            # Minta daftar pengguna
+            client_socket.send("LIST_USERS".encode())
+        elif choice == "2":
+            # Minta daftar grup
+            client_socket.send("LIST_GROUPS".encode())
+        elif choice == "3":
+            # Buat grup baru
+            group_name = input("Masukkan nama grup: ")
+            client_socket.send(f"CREATE_GROUP:{group_name}".encode())
+        elif choice == "4":
+            # Bergabung ke grup
+            group_name = input("Masukkan nama grup: ")
+            client_socket.send(f"JOIN_GROUP:{group_name}".encode())
+        elif choice == "5":
+            # Kirim pesan ke grup
+            group_name = input("Masukkan nama grup: ")
+            message = input("Masukkan pesan: ")
+            client_socket.send(f"SEND_GROUP:{group_name}:{message}".encode())
+        elif choice == "6":
+            # Kirim pesan pribadi
+            target_username = input("Masukkan username penerima: ")
+            message = input("Masukkan pesan: ")
+            
+            # Enkripsi pesan dengan DES
+            des_key = ''.join(random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(8))
+            recipient_public_key = get_public_key_from_pka(target_username)
+            if not recipient_public_key:
+                print(f"User '{target_username}' tidak ditemukan.")
+                continue
+            
+            # Enkripsi DES key menggunakan RSA
+            encrypted_key = rsa_encrypt(recipient_public_key, des_key)
+            
+            # Enkripsi pesan
+            encrypted_message = des_encrypt(des_key, message)
+            
+            # Kirim pesan terenkripsi
+            client_socket.send(f"CHAT_WITH:{target_username};KEY:{','.join(map(str, encrypted_key))};MSG:{encrypted_message}".encode())
+        elif choice == "7":
+            # Keluar
+            print("Keluar dari aplikasi.")
+            client_socket.close()
+            break
+        else:
+            print("Pilihan tidak valid. Silakan coba lagi.")
 
 def main():
     username = input("Masukkan username Anda: ")
@@ -103,15 +131,21 @@ def main():
 
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client_socket.connect(("127.0.0.1", 5555))
-    print("Terhubung ke server. Anda dapat mengirim dan menerima pesan.")
-    
-    recipient = input("Masukkan username penerima: ")
+    client_socket.send(username.encode())  # Kirim username ke server
 
+    print("Terhubung ke server.")
+
+    # Thread untuk menerima pesan
     thread_receive = threading.Thread(target=receive_messages, args=(client_socket,))
     thread_receive.start()
 
-    thread_send = threading.Thread(target=send_messages, args=(client_socket, recipient))
-    thread_send.start()
+    # Fungsi untuk mengirim pesan
+    send_messages(client_socket)
+
+    # Tunggu thread penerima selesai
+    thread_receive.join()
+    print("Client telah dihentikan.")
+
 
 if __name__ == "__main__":
     main()
